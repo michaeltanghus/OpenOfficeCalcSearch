@@ -1,0 +1,15 @@
+#!/bin/bash
+
+filename=$(basename "$1")  # Extracts the filename from the full path
+
+echo $filename
+
+TEMP_DIR=$(mktemp -d)
+
+unzip "$1" -d "$TEMP_DIR" || { echo "Failed to unzip $LATEST_ZIP"; exit 1; }
+
+echo $TEMP_DIR
+
+cp $TEMP_DIR/content.xml ~/ods_search_data/"$filename.xml"
+
+rm -rf $TEMP_DIR
