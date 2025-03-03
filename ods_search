@@ -1,15 +1,35 @@
 #!/bin/bash
 
-filename=$(basename "$1")  # Extracts the filename from the full path
+SEARCH_FILE_NAME="$1"
+BASENAME=$(basename "$SEARCH_FILE_NAME") # Extracts the filename from the full path
+EXTENSION="${BASENAME##*.}"
+if [[ "$EXTENSION" != "ods" ]]; then
+    echo "EXTENSION: $EXTENSION"
+    echo "converting to .ods format"
+	TEMP_CONV_DIR=$(mktemp -d)
+    soffice --headless --convert-to ods --outdir "$TEMP_CONV_DIR" "$1"
+    SEARCH_FILE_NAME=$(find "$TEMP_CONV_DIR" -type f)
+fi
 
-echo $filename
+BASENAME=$(basename "$SEARCH_FILE_NAME" | sed 's/ /_/g') # Extracts the filename from the full path
 
-TEMP_DIR=$(mktemp -d)
+FILENAME=${BASENAME%.*}   # remove exten
+SEARCH_MD5=$(md5sum "$SEARCH_FILE_NAME" |  sed -E 's/\./ /' | awk '{print $1}')
+DATA_DIR="/home/$USER/ods_search_data/"
+mkdir -p "$DATA_DIR"
+STORE_FILE_NAME="$DATA_DIR/""$SEARCH_MD5"_$FILENAME.xml
 
-unzip "$1" -d "$TEMP_DIR" || { echo "Failed to unzip $LATEST_ZIP"; exit 1; }
+# # 1. Check if the file exists
+ if [[ ! -f "$STORE_FILE_NAME" ]]; then
+     echo "No cashe file. Creating $STORE_FILE_NAME"
+    TEMP_DIR=$(mktemp -d)
+    unzip "$SEARCH_FILE_NAME" -d "$TEMP_DIR" || { echo "Failed to unzip $SEARCH_FILE_NAME"; exit 1; }
+    # echo $TEMP_DIR
+	ls -l $TEMP_DIR/content.xml
+    cp $TEMP_DIR/content.xml $STORE_FILE_NAME
+    rm -rf $TEMP_DIR
+fi
 
-echo $TEMP_DIR
+rm -rf "$TEMP_CONV_DIR"
 
-cp $TEMP_DIR/content.xml ~/ods_search_data/"$filename.xml"
-
-rm -rf $TEMP_DIR
+python3 ods_search.py "$STORE_FILE_NAME" "$2" yes 
